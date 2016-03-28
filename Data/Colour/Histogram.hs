@@ -1,3 +1,5 @@
+{-# LANGUAGE ViewPatterns #-}
+
 -- |
 -- Module    : Data.Colour.Histogram
 -- Copyright : (c) Colin Woodbury, 2016
@@ -16,28 +18,34 @@
 -- finding location (Histogram Backprojection).
 
 module Data.Colour.Histogram
-       ( Histogram(..)
+       ( AsHistogram(..)
+       , Histogram(..)
        ) where
 
---import Data.HashMap.Strict
+import Data.HashMap.Strict
 import Data.Key
 import Data.Ratio
 --import Data.Vector
+import Data.Hashable
 
 ---
 
--- | Any datatype which represents a Histogram, which is also a
--- Keyed and Zippable `Functor` and `Foldable`.
-class (Foldable t, ZipWithKey t) => Histogram t where
+-- | Any datatype which represents a Histogram.
+class AsHistogram t where
   -- | The number of pixels in the histogram.
-  pixelCount :: t Int -> Int
-  pixelCount = sum
+  pixelCount :: t -> Int
 
   -- | Intersection normalized by the number of pixels in the given model's
   -- `Histogram`. `Ratio` is used to prioritise accuracy.
-  intersection :: t Int -> t Int -> Ratio Int
+  intersection :: t -> t -> Ratio Int
+
+newtype Histogram k = Histogram { _hm :: HashMap k Int }
+
+instance (Eq k, Hashable k) => AsHistogram (Histogram k) where
+  pixelCount = sum . _hm
+
   intersection i m = inter % pixelCount m
-    where inter = sum $ zipWithKey (\_ i' m' -> min i' m') i m
+    where inter = sum $ zipWithKey (\_ i' m' -> min i' m') (_hm i) (_hm m)
   
 {-
 
@@ -60,6 +68,11 @@ is sufficient.
 
 Remember that model and image resolutions also don't really matter,
 but having a model with higher resolution than the target is better.
+
+Dimensionality of Histogram only matters upon creation.
+
+Leverage the type system so that no Histograms of different dimension
+or colour space can be mixed!
 
 -}  
 
