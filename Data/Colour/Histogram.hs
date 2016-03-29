@@ -1,5 +1,3 @@
-{-# LANGUAGE ViewPatterns #-}
-
 -- |
 -- Module    : Data.Colour.Histogram
 -- Copyright : (c) Colin Woodbury, 2016
@@ -18,8 +16,15 @@
 -- finding location (Histogram Backprojection).
 
 module Data.Colour.Histogram
-       ( AsHistogram(..)
+       (
+         -- * Histograms
+         AsHistogram(..)
        , Histogram(..)
+       , YCbCrHist
+       , RGBHist
+         -- * Index types
+       , CbCr(..)
+       , RGB(..)
        ) where
 
 import Data.HashMap.Strict
@@ -35,18 +40,43 @@ class AsHistogram t where
   -- | The number of pixels in the histogram.
   pixelCount :: t -> Int
 
+  -- | The total number of common pixels found in corresponding bins
+  -- between a Model and Image histogram.
+  commonPixels :: t -> t -> Int
+
   -- | Intersection normalized by the number of pixels in the given model's
   -- `Histogram`. `Ratio` is used to prioritise accuracy.
   intersection :: t -> t -> Ratio Int
+  intersection i m = commonPixels i m % pixelCount m
 
-newtype Histogram k = Histogram { _hm :: HashMap k Int }
+-- | An efficient Histogram, implemented internally as a `HashMap` to
+-- only store bins which count 1 or more pixels.
+newtype Histogram k = Histogram { _hm :: HashMap k Int } deriving (Eq,Show)
 
 instance (Eq k, Hashable k) => AsHistogram (Histogram k) where
   pixelCount = sum . _hm
 
-  intersection i m = inter % pixelCount m
-    where inter = sum $ zipWithKey (\_ i' m' -> min i' m') (_hm i) (_hm m)
-  
+  commonPixels i m = sum $ zipWithKey (\_ i' m' -> min i' m') (_hm i) (_hm m)
+
+-- | An index type for a two-axis Histogram counting pixels in YCbCr space.
+-- By working in YCbCr, our algorithm should perform well regardless of
+-- lighting conditions, provided that model and image histograms share
+-- a light source.
+--
+-- If light sources differ, then the CbCr space will be skewed toward
+-- Blue for outdoor light, and toward Yellow for indoor light.
+--
+-- Experiments have yet to be done to show the difference in accuracy
+-- between cases.
+newtype CbCr = CbCr { _cbcr :: (Int,Int) } deriving (Eq,Show)
+
+-- | An index type for a three-axis Histogram counting pixels in RGB.
+newtype RGB = RGB { _rgb :: (Int,Int,Int) } deriving (Eq,Show)
+
+type YCbCrHist = Histogram CbCr
+
+type RGBHist = Histogram RGB
+
 {-
 
 A histogram can have:
@@ -75,5 +105,3 @@ Leverage the type system so that no Histograms of different dimension
 or colour space can be mixed!
 
 -}  
-
-
