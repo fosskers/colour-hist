@@ -33,8 +33,16 @@ module Data.Colour.Histogram
        , ycbcrHist
        , rgbHist
          -- * Indices
+         -- ** Types
        , CbCr(..)
        , RG(..)
+         -- ** Bins
+       , bin8x8
+       , bin16x16
+       , bin32x32
+       , bin64x64
+       , bin128x128
+       , bin256x256
        ) where
 
 import qualified Data.HashMap.Strict as HM
@@ -132,8 +140,35 @@ ycbcrHist f = hist (\(_,cb,cr) -> f (cb,cr))
 rgbHist :: ((Word8,Word8,Word8) -> RG) -> V.Vector Word8 -> RGBHist
 rgbHist = hist
 
---bin8x8 :: (Word8,Word8) -> (Word8,Word8)
---bin8x8 (x,y) = undefined
+-- This type casting seems inefficient.
+scale :: Int -> Word8 -> Word8
+scale dim 255 = fromIntegral dim - 1
+scale dim n = fromIntegral $ (dim * fromIntegral n) `div` 255
+
+-- | The @binNxN@ series of functions tranform colour values in the range
+-- [0-255] into indices for "bins" of pixels counts.
+-- For instance, if you wish to form a `Histogram` with 8 bins per axis,
+-- you would use `bin8x8`.
+--
+-- Typically, `bin8x8` or `bin16x16` are sufficient.
+-- (TODO: need proof)
+bin8x8 :: (Word8,Word8) -> (Word8,Word8)
+bin8x8 (x,y) = (scale 8 x, scale 8 y)
+
+bin16x16 :: (Word8,Word8) -> (Word8,Word8)
+bin16x16 (x,y) = (scale 16 x, scale 16 y)
+
+bin32x32 :: (Word8,Word8) -> (Word8,Word8)
+bin32x32 (x,y) = (scale 32 x, scale 32 y)
+
+bin64x64 :: (Word8,Word8) -> (Word8,Word8)
+bin64x64 (x,y) = (scale 64 x, scale 64 y)
+
+bin128x128 :: (Word8,Word8) -> (Word8,Word8)
+bin128x128 (x,y) = (scale 128 x, scale 128 y)
+
+bin256x256 :: (Word8,Word8) -> (Word8,Word8)
+bin256x256 (x,y) = (scale 256 x, scale 256 y)
 
 {-
 
@@ -147,7 +182,6 @@ A histogram must:
 
 A bin must:
 - Know its own colour range? (for Inc.Int.?)
-
 NOTES
 -----
 
