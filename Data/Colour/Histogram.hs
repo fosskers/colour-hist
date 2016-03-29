@@ -32,6 +32,7 @@ module Data.Colour.Histogram
        , hist
        , ycbcrHist
        , rgbHist
+       , rgbConstancy
          -- * Indices
          -- ** Types
        , CbCr(..)
@@ -133,12 +134,25 @@ hist f v = Histogram $ go v HM.empty
 --
 -- The function is a transformation of indices in `Word8` space (i.e. [0-255])
 -- to those in a reduced "bin" space.
-ycbcrHist :: ((Word8,Word8) -> CbCr) -> V.Vector Word8 -> YCbCrHist
-ycbcrHist f = hist (\(_,cb,cr) -> f (cb,cr))
+--
+-- Example:
+--
+-- > ycbcrHist bin8x8 imageVec
+ycbcrHist :: ((Word8,Word8) -> (Word8,Word8)) -> V.Vector Word8 -> YCbCrHist
+ycbcrHist f = hist (\(_,cb,cr) -> CbCr $ f (cb,cr))
 
--- | Analogous to `ycbcrHist`.
-rgbHist :: ((Word8,Word8,Word8) -> RG) -> V.Vector Word8 -> RGBHist
-rgbHist = hist
+-- | Analogous to `ycbcrHist`. Example:
+--
+-- > rgbHist (bin8x8 . rgbConstancy) imageVec
+rgbHist :: ((Word8,Word8,Word8) -> (Word8,Word8)) -> V.Vector Word8 -> RGBHist
+rgbHist f = hist (RG . f)
+
+-- | Account for lighting differences between RGB images.
+-- This reduces the original RGB triplet to a modified RG pair, as
+-- described in the `RG` index type.
+rgbConstancy :: (Word8,Word8,Word8) -> (Word8,Word8)
+rgbConstancy (r,g,b) = (r `div` rgb, g `div` rgb)
+  where rgb = r + g + b
 
 -- This type casting seems inefficient.
 scale :: Int -> Word8 -> Word8
@@ -148,25 +162,30 @@ scale dim n = fromIntegral $ (dim * fromIntegral n) `div` 255
 -- | The @binNxN@ series of functions tranform colour values in the range
 -- [0-255] into indices for "bins" of pixels counts.
 -- For instance, if you wish to form a `Histogram` with 8 bins per axis,
--- you would use `bin8x8`.
+-- (thus 32 pixels per bin) you would use `bin8x8`.
 --
 -- Typically, `bin8x8` or `bin16x16` are sufficient.
 -- (TODO: need proof)
 bin8x8 :: (Word8,Word8) -> (Word8,Word8)
 bin8x8 (x,y) = (scale 8 x, scale 8 y)
 
+-- | 16 pixels per bin.
 bin16x16 :: (Word8,Word8) -> (Word8,Word8)
 bin16x16 (x,y) = (scale 16 x, scale 16 y)
 
+-- | 8 pixels per bin.
 bin32x32 :: (Word8,Word8) -> (Word8,Word8)
 bin32x32 (x,y) = (scale 32 x, scale 32 y)
 
+-- | 4 pixels per bin.
 bin64x64 :: (Word8,Word8) -> (Word8,Word8)
 bin64x64 (x,y) = (scale 64 x, scale 64 y)
 
+-- | 2 pixels per bin.
 bin128x128 :: (Word8,Word8) -> (Word8,Word8)
 bin128x128 (x,y) = (scale 128 x, scale 128 y)
 
+-- | 1 pixel per bin.
 bin256x256 :: (Word8,Word8) -> (Word8,Word8)
 bin256x256 (x,y) = (scale 256 x, scale 256 y)
 
