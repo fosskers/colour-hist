@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ViewPatterns #-}
 
 -- |
 -- Module    : Data.Colour.Histogram
@@ -72,7 +73,7 @@ class AsHistogram t where
   -- | Intersection normalized by the number of pixels in the given model's
   -- `Histogram`. `Ratio` is used to prioritise accuracy.
   intersection :: t -> t -> Ratio Int
-  intersection i m = commonPixels i m % pixelCount m
+  intersection t m = commonPixels t m % pixelCount m
 
 -- | An efficient Histogram, implemented internally as a `HashMap` to
 -- only store bins which count 1 or more pixels.
@@ -81,7 +82,7 @@ newtype Histogram k = Histogram { _hm :: HM.HashMap k Int } deriving (Eq,Show)
 instance (Eq k, Hashable k) => AsHistogram (Histogram k) where
   pixelCount = sum . _hm
 
-  commonPixels i m = sum $ zipWithKey (\_ i' m' -> min i' m') (_hm i) (_hm m)
+  commonPixels t m = sum $ zipWithKey (\_ t' m' -> min t' m') (_hm t) (_hm m)
 
 -- | An index type for a two-axis Histogram counting pixels in YCbCr space.
 -- By working in YCbCr, our algorithm should perform well regardless of
@@ -151,13 +152,12 @@ rgbHist f = hist (RG . f)
 -- This reduces the original RGB triplet to a modified RG pair, as
 -- described in the `RG` index type.
 rgbConstancy :: (Word8,Word8,Word8) -> (Word8,Word8)
-rgbConstancy (r,g,b) = (r `div` rgb, g `div` rgb)
+rgbConstancy (i -> r, i -> g, i -> b) = (w $ r `div` rgb, w $ g `div` rgb)
   where rgb = r + g + b
 
--- This type casting seems inefficient.
 scale :: Int -> Word8 -> Word8
-scale dim 255 = fromIntegral dim - 1
-scale dim n = fromIntegral $ (dim * fromIntegral n) `div` 255
+scale dim 255 = w dim - 1
+scale dim n = w $ (dim * i n) `div` 255
 
 -- | The @binNxN@ series of functions tranform colour values in the range
 -- [0-255] into indices for "bins" of pixels counts.
@@ -188,6 +188,14 @@ bin128x128 (x,y) = (scale 128 x, scale 128 y)
 -- | 1 pixel per bin.
 bin256x256 :: (Word8,Word8) -> (Word8,Word8)
 bin256x256 (x,y) = (scale 256 x, scale 256 y)
+
+i :: Word8 -> Int
+i = fromIntegral
+{-# INLINE i #-}
+
+w :: Int -> Word8
+w = fromIntegral
+{-# INLINE w #-}
 
 {-
 
