@@ -1,3 +1,5 @@
+{-# LANGUAGE DeriveGeneric #-}
+
 -- |
 -- Module    : Data.Colour.Histogram
 -- Copyright : (c) Colin Woodbury, 2016
@@ -5,10 +7,13 @@
 -- Maintainer: Colin Woodbury <colingw@gmail.com>
 --
 -- A *Colour Histogram*, as defined in the 1991 paper *Colour Indexing* by
--- Swain and Ballard: URL HERE
+-- Swain and Ballard:
+-- http://www.inf.ed.ac.uk/teaching/courses/av/LECTURE_NOTES/swainballard91.pdf
 --
 -- Colour Histograms and their associated algorithms can be used to:
+--
 --   1. Find a known object in some location within an image
+--
 --   2. Identify an object in a known location in an image
 --
 -- This library provides two algorithms for object identification
@@ -18,22 +23,33 @@
 module Data.Colour.Histogram
        (
          -- * Histograms
+         -- ** Types
          AsHistogram(..)
        , Histogram(..)
        , YCbCrHist
        , RGBHist
-         -- * Index types
+         -- ** Creation
+       , hist
+       , ycbcrHist
+       , rgbHist
+         -- * Indices
        , CbCr(..)
-       , RGB(..)
+       , RG(..)
        ) where
 
-import Data.HashMap.Strict
-import Data.Key
-import Data.Ratio
---import Data.Vector
-import Data.Hashable
+import qualified Data.HashMap.Strict as HM
+import           Data.Hashable
+import           Data.Key
+import           Data.Ratio
+import qualified Data.Vector.Storable as V
+import           Data.Word
+import           GHC.Generics (Generic)
 
 ---
+
+--data family Hist k
+--data instance Hist CbCr = Histogram CbCr
+--data instance Hist RGB = Histogram RGB
 
 -- | Any datatype which represents a Histogram.
 class AsHistogram t where
@@ -51,7 +67,7 @@ class AsHistogram t where
 
 -- | An efficient Histogram, implemented internally as a `HashMap` to
 -- only store bins which count 1 or more pixels.
-newtype Histogram k = Histogram { _hm :: HashMap k Int } deriving (Eq,Show)
+newtype Histogram k = Histogram { _hm :: HM.HashMap k Int } deriving (Eq,Show)
 
 instance (Eq k, Hashable k) => AsHistogram (Histogram k) where
   pixelCount = sum . _hm
@@ -68,14 +84,56 @@ instance (Eq k, Hashable k) => AsHistogram (Histogram k) where
 --
 -- Experiments have yet to be done to show the difference in accuracy
 -- between cases.
-newtype CbCr = CbCr { _cbcr :: (Int,Int) } deriving (Eq,Show)
+newtype CbCr = CbCr { _cbcr :: (Word8,Word8) } deriving (Eq,Show,Generic)
 
--- | An index type for a three-axis Histogram counting pixels in RGB.
-newtype RGB = RGB { _rgb :: (Int,Int,Int) } deriving (Eq,Show)
+instance Hashable CbCr
+
+-- | An index type for a two-axis Histogram counting pixels in an RGB image.
+-- A simple colour constancy algorithm is applied to the raw RGB to
+-- factor out image intensity, as well as reduce the Histogram to only
+-- two axes:
+--
+-- r' = r/(r+g+b)
+--
+-- g' = g/(r+g+b)
+--
+-- b' = b/(r+g+b)
+--
+-- b' is unneeded, as it can be derived via r' and g'.
+newtype RG = RG { _rg :: (Word8,Word8) } deriving (Eq,Show,Generic)
+
+instance Hashable RG
 
 type YCbCrHist = Histogram CbCr
 
-type RGBHist = Histogram RGB
+type RGBHist = Histogram RG
+
+-- | Generic function for creating a `Histogram` with any `Hashable` key type.
+-- Must provide a function which performs colour constancy and yields
+-- an index representing a "bin" in the histogram.
+hist :: (Eq k, Hashable k) => ((Word8,Word8,Word8) -> k) -> V.Vector Word8 -> Histogram k
+hist f v = Histogram $ go v HM.empty
+  where go v' hm | V.null v' = hm
+                 | otherwise = go v'' $ HM.insertWith (+) k 1 hm
+          where k = f (pix V.! 0, pix V.! 1, pix V.! 2)
+                (pix,v'') = V.splitAt 3 v'
+
+-- | Create a YCbCr `Histogram`. The input vector is assumed to be a
+-- `Data.Vector.Storable` representing an image whose pixels are held
+-- in order of their channel, i.e. @[y,cb,cr,y,cb,cr,...]@
+-- This is the data format used by the JuicyPixels library.
+--
+-- The function is a transformation of indices in `Word8` space (i.e. [0-255])
+-- to those in a reduced "bin" space.
+ycbcrHist :: ((Word8,Word8) -> CbCr) -> V.Vector Word8 -> YCbCrHist
+ycbcrHist f = hist (\(_,cb,cr) -> f (cb,cr))
+
+-- | Analogous to `ycbcrHist`.
+rgbHist :: ((Word8,Word8,Word8) -> RG) -> V.Vector Word8 -> RGBHist
+rgbHist = hist
+
+--bin8x8 :: (Word8,Word8) -> (Word8,Word8)
+--bin8x8 (x,y) = undefined
 
 {-
 
