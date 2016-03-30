@@ -4,6 +4,7 @@ import           Codec.Picture.Jpg
 import           Codec.Picture.Types
 import qualified Data.ByteString as B
 import           Data.Colour.Histogram
+import qualified Data.HashMap.Strict as HM
 import qualified Data.Vector.Storable as V
 import           Data.Word (Word8)
 import           Test.Tasty
@@ -81,4 +82,5 @@ main = do
   catB <- ycbcrHist bin32x32 <$> readImg "test/cat-big.jpg"
   cali <- ycbcrHist bin32x32 <$> readImg "test/calico.jpg"
   calB <- ycbcrHist bin32x32 <$> readImg "test/calico-big.jpg"
+  putStrLn $ "Bins used in cat.jpg: " ++ show (HM.size $ _hm cat)
   defaultMain (suite cat catT catO catB cali calB)
