@@ -45,6 +45,8 @@ module Data.Colour.Histogram
        , bin64x64
        , bin128x128
        , bin256x256
+       , bin8x8f
+       , bin16x16f
        ) where
 
 import qualified Data.HashMap.Strict as HM
@@ -56,10 +58,6 @@ import           Data.Word
 import           GHC.Generics (Generic)
 
 ---
-
---data family Hist k
---data instance Hist CbCr = Histogram CbCr
---data instance Hist RGB = Histogram RGB
 
 -- | Any datatype which represents a Histogram.
 class AsHistogram t where
@@ -151,13 +149,21 @@ rgbHist f = hist (RG . f)
 -- | Account for lighting differences between RGB images.
 -- This reduces the original RGB triplet to a modified RG pair, as
 -- described in the `RG` index type.
-rgbConstancy :: (Word8,Word8,Word8) -> (Word8,Word8)
-rgbConstancy (i -> r, i -> g, i -> b) = (w $ r `div` rgb, w $ g `div` rgb)
+rgbConstancy :: (Word8,Word8,Word8) -> (Float,Float)
+rgbConstancy (fi -> r, fi -> g, fi -> b) = (r / rgb, g / rgb)
   where rgb = r + g + b
+-- TODO: Something about this isn't right. The paper wants `Float` here,
+-- but how is that meaningful for filling bins?
+-- Ah ha, our `Histogram` doesn't need `(Word8,Word8)` per se for its
+-- indices, only something that is `Hashable`.
+-- It is possible to get`(Float,Float) -> (Word8,Word8)`.
 
 scale :: Int -> Word8 -> Word8
-scale dim 255 = w dim - 1
-scale dim n = w $ (dim * i n) `div` 255
+scale dim 255 = fi dim - 1
+scale dim n = fi $ (dim * fi n) `div` 255
+
+scaleF :: Float -> Word8
+scaleF n = round $ n * 765
 
 -- | The @binNxN@ series of functions tranform colour values in the range
 -- [0-255] into indices for "bins" of pixels counts.
@@ -169,9 +175,19 @@ scale dim n = w $ (dim * i n) `div` 255
 bin8x8 :: (Word8,Word8) -> (Word8,Word8)
 bin8x8 (x,y) = (scale 8 x, scale 8 y)
 
+-- | Analogous to `bin8x8`, but operates on `Float` in the range [0,1/3].
+--
+-- Note: This will _not_ produce the correct result for normal RGB values
+-- normalized to [0,1].
+bin8x8f :: (Float,Float) -> (Word8,Word8)
+bin8x8f (x,y) = bin8x8 (scaleF x, scaleF y)
+
 -- | 16 pixels per bin.
 bin16x16 :: (Word8,Word8) -> (Word8,Word8)
 bin16x16 (x,y) = (scale 16 x, scale 16 y)
+
+bin16x16f :: (Float,Float) -> (Word8,Word8)
+bin16x16f (x,y) = bin16x16 (scaleF x, scaleF y)
 
 -- | 8 pixels per bin.
 bin32x32 :: (Word8,Word8) -> (Word8,Word8)
@@ -189,38 +205,6 @@ bin128x128 (x,y) = (scale 128 x, scale 128 y)
 bin256x256 :: (Word8,Word8) -> (Word8,Word8)
 bin256x256 (x,y) = (scale 256 x, scale 256 y)
 
-i :: Word8 -> Int
-i = fromIntegral
-{-# INLINE i #-}
-
-w :: Int -> Word8
-w = fromIntegral
-{-# INLINE w #-}
-
-{-
-
-A histogram can have:
-- Varying axes
-- Varying bin sizes
-
-A histogram must:
-- Know how many pixels it accounts for
-- Be indexable
-
-A bin must:
-- Know its own colour range? (for Inc.Int.?)
-NOTES
------
-
-The shape of the image doesn't matter at all, so a `Vector` of pixels
-is sufficient.
-
-Remember that model and image resolutions also don't really matter,
-but having a model with higher resolution than the target is better.
-
-Dimensionality of Histogram only matters upon creation.
-
-Leverage the type system so that no Histograms of different dimension
-or colour space can be mixed!
-
--}  
+fi :: (Integral a, Num b) => a -> b
+fi = fromIntegral
+{-# INLINE fi #-}
