@@ -52,7 +52,6 @@ module Data.Colour.Histogram
 import qualified Data.HashMap.Strict as HM
 import           Data.Hashable
 import           Data.Key
-import           Data.Ratio
 import qualified Data.Vector.Storable as V
 import           Data.Word
 import           GHC.Generics (Generic)
@@ -70,8 +69,8 @@ class AsHistogram t where
 
   -- | Intersection normalized by the number of pixels in the given model's
   -- `Histogram`. `Ratio` is used to prioritise accuracy.
-  intersection :: t -> t -> Ratio Int
-  intersection t m = commonPixels t m % pixelCount m
+  intersection :: t -> t -> Float
+  intersection t m = fi (commonPixels t m) / fi (pixelCount m)
 
 -- | An efficient Histogram, implemented internally as a `HashMap` to
 -- only store bins which count 1 or more pixels.

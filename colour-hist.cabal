@@ -12,7 +12,14 @@ maintainer:          colingw@gmail.com
 -- copyright:           
 category:            Graphics
 build-type:          Simple
--- extra-source-files:  
+
+extra-source-files:    test/cat.jpg
+                     , test/cat-turned.jpg
+                     , test/cat-neko.jpg
+                     , test/cat-big.jpg
+                     , test/calico.jpg
+                     , test/calico-big.jpg
+
 cabal-version:       >=1.10
 
 library
@@ -40,6 +47,8 @@ test-suite colour-hist-test
                      , tasty-quickcheck >= 0.8 && < 0.9
                      , colour-hist
                      , JuicyPixels >= 3.2 && < 4
+                     , bytestring
+                     , vector >= 0.11 && < 0.12
 
   hs-source-dirs:      test
   main-is:             Test.hs
