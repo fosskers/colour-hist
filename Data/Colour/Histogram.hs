@@ -152,11 +152,6 @@ rgbHist f = hist (RG . f)
 rgbConstancy :: (Word8,Word8,Word8) -> (Float,Float)
 rgbConstancy (fi -> r, fi -> g, fi -> b) = (r / rgb, g / rgb)
   where rgb = r + g + b
--- TODO: Something about this isn't right. The paper wants `Float` here,
--- but how is that meaningful for filling bins?
--- Ah ha, our `Histogram` doesn't need `(Word8,Word8)` per se for its
--- indices, only something that is `Hashable`.
--- It is possible to get`(Float,Float) -> (Word8,Word8)`.
 
 scale :: Int -> Word8 -> Word8
 scale dim 255 = fi dim - 1
