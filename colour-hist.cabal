@@ -16,6 +16,7 @@ build-type:          Simple
 extra-source-files:    test/cat.jpg
                      , test/cat-turned.jpg
                      , test/cat-neko.jpg
+                     , test/cat-cut.jpg
                      , test/cat-big.jpg
                      , test/calico.jpg
                      , test/calico-big.jpg

@@ -47,6 +47,7 @@ module Data.Colour.Histogram
        , bin256x256
        , bin8x8f
        , bin16x16f
+       , bin32x32f
        ) where
 
 import qualified Data.HashMap.Strict as HM
@@ -186,6 +187,9 @@ bin16x16f (x,y) = bin16x16 (scaleF x, scaleF y)
 -- | 8 pixels per bin.
 bin32x32 :: (Word8,Word8) -> (Word8,Word8)
 bin32x32 (x,y) = (scale 32 x, scale 32 y)
+
+bin32x32f :: (Float,Float) -> (Word8,Word8)
+bin32x32f (x,y) = bin32x32 (scaleF x, scaleF y)
 
 -- | 4 pixels per bin.
 bin64x64 :: (Word8,Word8) -> (Word8,Word8)
